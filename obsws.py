@@ -3,7 +3,7 @@ import requests
 import time
 
 # pass conn info if not in config.toml
-cl = obs.ReqClient(host='localhost', port=4455, password='h3ySqG7HgcHffsEu', timeout=3)
+cl = obs.ReqClient(host='localhost', port=4455, password='password', timeout=3)
 
 # Toggle the mute state of your Mic input
 cl.toggle_input_mute('Mic/Aux')
