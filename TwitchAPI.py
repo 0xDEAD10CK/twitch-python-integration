@@ -2,11 +2,12 @@ from twitchAPI.twitch import Twitch
 from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.type import AuthScope, ChatEvent
 from twitchAPI.chat import Chat, EventData, ChatMessage, ChatSub, ChatCommand
-#from twitchAPI.pubsub import PubSub
 from obsws import *
 from dotenv import load_dotenv
+
 import os
 import asyncio
+import random
 
 load_dotenv() 
 
@@ -40,9 +41,9 @@ async def on_ready(ready_event: EventData):
 async def on_message(msg: ChatMessage):
     print(f'in {msg.room.name}, {msg.user.name} said: {msg.text}')
     if msg.text == "Follow":
-        play_animation(18, 21, msg.user.name, "Follower")
+        alert(18, 21, msg.user.name, "Follower")
     if msg.text == "Sub":
-        play_animation(18, 21, msg.user.name, "Subscriber")
+        alert(18, 21, msg.user.name, "Subscriber")
 
 
 # this will be called whenever someone subscribes to a channel
@@ -58,6 +59,37 @@ async def test_command(cmd: ChatCommand):
     else:
         await cmd.reply(f'{cmd.user.name}: {cmd.parameter}')
 
+async def list_commands(cmd: ChatCommand):
+    await cmd.reply(f"Available commands: \n!reply <message> \n!beancounter <username> \n!commands")
+
+async def paper_scissors_rock(cmd: ChatCommand):
+    if len(cmd.parameter) == 0:
+        await cmd.reply('You must choose either rock, paper, or scissors')
+    elif cmd.parameter != 'rock' or cmd.parameter != 'paper' or cmd.parameter != 'scissors':
+        await cmd.reply('You must choose either rock, paper, or scissors')
+    else:
+        robotChoice = random.choice(['rock', 'paper', 'scissors'])
+
+        if cmd.parameter == robotChoice:
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. It's a tie!")
+        elif cmd.parameter == 'rock' and robotChoice == 'paper':
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. I win!")
+        elif cmd.parameter == 'rock' and robotChoice == 'scissors':
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. You win!")
+        elif cmd.parameter == 'paper' and robotChoice == 'rock':
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. You win!")
+        elif cmd.parameter == 'paper' and robotChoice == 'scissors':
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. I win!")
+        elif cmd.parameter == 'scissors' and robotChoice == 'rock':
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. I win!")
+        elif cmd.parameter == 'scissors' and robotChoice == 'paper':
+            await cmd.reply(f"{cmd.user.name} chose {cmd.parameter}, I chose {robotChoice}. You win!")
+
+
+        
+# Example function to handle events
+async def handle_follow_event(event_data):
+    print(f"Received follow event: {event_data}")
 
 # this is where we set up the bot
 async def run():
@@ -69,7 +101,6 @@ async def run():
 
     # create chat instance
     chat = await Chat(twitch)
-
     # register the handlers for the events you want
 
     # listen to when the bot is done starting up and ready to join channels
@@ -80,12 +111,10 @@ async def run():
     chat.register_event(ChatEvent.SUB, on_sub)
     # there are more events, you can view them all in this documentation
 
-    # Subscribe to follower events for your channel
-    #pubsub.listen_channel_points(TARGET_CHANNEL, on_follow)
-    #pubsub.listen()
-
     # you can directly register commands and their handlers, this will register the !reply command
     chat.register_command('reply', test_command)
+    chat.register_command('commands', list_commands)
+    chat.register_command('psr', paper_scissors_rock)
 
     # we are done with our setup, lets start this bot up!
     chat.start()

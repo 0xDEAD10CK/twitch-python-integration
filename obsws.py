@@ -20,7 +20,7 @@ for item in scene_items.scene_items:  # Access the scene_items attribute
     print("------")
 
 # Function to handle follow events and play animation
-def play_animation(sceneTextItemId, sceneImageItemId, username, type):
+def alert(sceneTextItemId, sceneImageItemId, username, type):
     # Show the source (e.g., FollowAnimation in OBS)
     cl.set_input_settings(name="FollowerText", settings={"text": f"New {type}: {username}"}, overlay=True)
     cl.set_scene_item_enabled(scene_name="In-Game Layout - Horizontal", item_id=sceneTextItemId, enabled=True)
@@ -29,11 +29,3 @@ def play_animation(sceneTextItemId, sceneImageItemId, username, type):
     time.sleep(5)
     cl.set_scene_item_enabled(scene_name="In-Game Layout - Horizontal", item_id=sceneTextItemId, enabled=False)
     cl.set_scene_item_enabled(scene_name="In-Game Layout - Horizontal", item_id=sceneImageItemId, enabled=False)
-
-async def follow_handler(event):
-    print(f"New follower: {event['user_name']}")
-    play_animation(18)
-
-async def sub_handler(event):
-    print(f"New subscriber: {event['user_name']}")
-    play_animation("SubAnimation")
