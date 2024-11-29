@@ -5,6 +5,7 @@ from twitchAPI.eventsub.websocket import EventSubWebsocket
 from twitchAPI.chat import Chat, EventData, ChatMessage, ChatSub, ChatCommand
 from obsws import *
 from dotenv import load_dotenv
+import threading
 
 import os
 import subprocess
@@ -17,6 +18,18 @@ load_dotenv()
 APP_ID = os.getenv('APP_ID')
 APP_SECRET = os.getenv('APP_SECRET')
 TARGET_CHANNEL = os.getenv('TARGET_CHANNEL')
+
+# Initialize empty names for both subscriber and follower
+recent_subscriber = ""
+recent_follower = ""
+
+with open('recentFollow.txt', 'r') as f:
+    recent_follower = f.read()
+    f.close()
+
+with open('recentSub.txt', 'r') as f:
+    recent_subscriber = f.read()
+    f.close()
 
 USER_SCOPE = [
     AuthScope.CHAT_READ,
@@ -31,6 +44,7 @@ USER_SCOPE = [
 # this will be called when the event READY is triggered, which will be on bot start
 async def on_ready(ready_event: EventData):
     print('Bot is ready for work, joining channels')
+    threading.Thread(target=spin_chat).start()
     # join our target channel, if you want to join multiple, either call join for each individually.
     await ready_event.chat.join_room(TARGET_CHANNEL)
     # you can do other bot initialization things in here
@@ -38,19 +52,39 @@ async def on_ready(ready_event: EventData):
 # this will be called whenever a message in a channel was send by either the bot OR another user
 async def on_message(msg: ChatMessage):
     print(f'in {msg.room.name}, {msg.user.name} said: {msg.text}')
-    if msg.text == "Follow":
-        alert(18, 21, 24, msg.user.name, "Follower")
-    if msg.text == "Sub":
-        alert(18, 21, 24, msg.user.name, "Subscriber")
+    with open('chat.txt', 'a') as f:
+        f.write(f'{msg.user.name}: {msg.text}\n\n')
+        f.close()
+
+async def update_recent_activity(subscriber_name: str, follower_name: str):
+    with open('recentActivity.txt', 'w') as f:
+        f.write(f" || Most Recent Sub: {subscriber_name} || Most Recent Follow: {follower_name}")
 
 # this will be called whenever someone subscribes to a channel
-async def on_sub(sub: ChatSub):
-    print(f'New subscription in {sub.room.name}:\\n'
-          f'  Type: {sub.sub_plan}\\n'
-          f'  Message: {sub.sub_message}')
+async def on_sub(event: dict) -> Awaitable[None]:
+    global recent_subscriber
+    recent_subscriber = event.event.user_name
+
+    with open('recentSub.txt', 'w') as f:
+        f.write(recent_subscriber)
+        f.close()
+
+    alert(18, 21, 24, event.event.user_name, "Subscriber")
+
+    await update_recent_activity(recent_subscriber, recent_follower)
 
 async def on_follow(event: dict) -> Awaitable[None]:
+    global recent_follower
+    recent_follower = event.event.user_name
+
+    with open('recentFollower.txt', 'w') as f:
+        f.write(recent_follower)
+        f.close()
+
     alert(18, 21, 24, event.event.user_name, "Follower")
+
+    await update_recent_activity(recent_subscriber, recent_follower)
+
 
 # this will be called whenever the !reply command is issued
 async def test_command(cmd: ChatCommand):
@@ -75,9 +109,7 @@ async def run():
 
     # Fetch the user ID for the channel using async generator
     async for user in twitch.get_users(logins=[TARGET_CHANNEL]):
-        print('1. ', user)
         TARGET_CHANNEL_ID = user.id
-        print('2.', TARGET_CHANNEL_ID)
         break  # Extract the first user and exit the loop
 
     # create chat instance
@@ -87,17 +119,10 @@ async def run():
     eventsub = EventSubWebsocket(twitch)
     eventsub.start()
 
-    print('3. ', user)
-    print('4. ', TARGET_CHANNEL_ID)
-
-    print(eventsub.connection_url)
-
-    # register the eventsub subscription
-    await eventsub.listen_channel_follow_v2(
-        broadcaster_user_id=str(TARGET_CHANNEL_ID),
-        moderator_user_id=str(TARGET_CHANNEL_ID),
-        callback=on_follow
-    )
+    # register the eventsub subscriptions
+    await eventsub.listen_channel_follow_v2(broadcaster_user_id=str(TARGET_CHANNEL_ID), moderator_user_id=str(TARGET_CHANNEL_ID), callback=on_follow)
+    await eventsub.listen_channel_subscribe(broadcaster_user_id=str(TARGET_CHANNEL_ID), callback=on_sub)
+    #await eventsub.listen_channel_points_custom_reward_redemption_update
 
     # register the handlers for the events you want
 

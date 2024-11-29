@@ -165,4 +165,5 @@ cython_debug/
 *.gif
 *.cert
 *.key
+*.txt
 TOTALLY NOT MALWARE/
